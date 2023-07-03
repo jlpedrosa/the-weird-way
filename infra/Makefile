@@ -17,7 +17,11 @@ apply: init
 
 .PHONY: connect
 connect:
-	ssh -o "StrictHostKeyChecking no" jose@$$(terraform output -json | jq -r '.instances.value.test.address')
+	ssh -o "StrictHostKeyChecking no" jose@$$(terraform output -json | jq -r '.instances.value."ctrl-plane-1".address')
+
+.PHONY: worker
+worker:
+	ssh -o "StrictHostKeyChecking no" jose@$$(terraform output -json | jq -r '.instances.value."wrkr-node-1".address')
 
 
 .PHONY: reset

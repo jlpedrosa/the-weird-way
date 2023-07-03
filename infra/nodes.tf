@@ -1,11 +1,10 @@
 locals {
   disk_location = "/tmp/k8s_lab"
   nodes = {
-    "test" = {}
-    #"ctrl-plane-1" = {}
-    #"ctrl-plane-2" = {}
+    "ctrl-plane-1" = {}
+    "ctrl-plane-2" = {}
     #"ctrl-plane-3" = {}
-    #"wrkr-node-1" = {}
+    "wrkr-node-1" = {}
     #"wrkr-node-2" = {}
     #"wrkr-node-3" = {}
   }
@@ -33,17 +32,43 @@ resource "libvirt_volume" "node_disk" {
   size           = "5368709120"
 }
 
-data "template_file" "user_data" {
+# contents for network cloud-init
+data "template_file" "network_config" {
+  template = file("${path.module}/control-plane/network_config.cfg")
+}
+
+# contents for system cloud-init
+data "template_file" "system_data" {
   for_each       = local.nodes
-  template = file("${path.module}/cloud_init.yaml")
+  template = file("${path.module}/control-plane/cloud_init.yaml")
   vars = {
     hostname = each.key
   }
 }
 
-data "template_file" "network_config" {
-  template = file("${path.module}/network_config.cfg")
+
+# Render a multi-part cloud-init config making use of the part
+# above, and other source files
+data "template_cloudinit_config" "cloud_init_config" {
+  for_each       = local.nodes
+  gzip          = false
+  base64_encode = false
+
+  # Main cloud-config configuration file.
+  part {
+    filename     = "init.cfg"
+    content_type = "text/cloud-config"
+    content      = data.template_file.system_data[each.key].rendered
+  }
+
+  # Kubeadm
+#  part {
+#    filename     = "kubeadm-init.yaml"
+#    content_type = "text/cloud-config"
+#    content      = data.template_file.kubeadm_data[each.key].rendered
+#  }
 }
+
 
 # for more info about paramater check this out
 # https://github.com/dmacvicar/terraform-provider-libvirt/blob/master/website/docs/r/cloudinit.html.markdown
@@ -51,7 +76,7 @@ data "template_file" "network_config" {
 resource "libvirt_cloudinit_disk" "cloud_init" {
   for_each       = local.nodes
   name           = "${each.key}-init.iso"
-  user_data      = data.template_file.user_data[each.key].rendered
+  user_data      = data.template_cloudinit_config.cloud_init_config[each.key].rendered
   network_config = data.template_file.network_config.rendered
   pool           = libvirt_pool.disk_pool.name
 }

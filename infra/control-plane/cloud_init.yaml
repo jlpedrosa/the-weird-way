@@ -10,8 +10,6 @@
 # will know how to understand. encoding can be given b64 or gzip or (gz+b64).
 # The content will be decoded accordingly and then written to the path that is
 # provided.
-#
-# Note: Content strings here are truncated for example purposes.
 ssh_pwauth: true
 disable_root: false
 hostname: ${hostname}
@@ -44,6 +42,49 @@ write_files:
       net.bridge.bridge-nf-call-iptables  = 1
       net.ipv4.ip_forward                 = 1
       net.bridge.bridge-nf-call-ip6tables = 1
+  - path: /etc/kubeadm-init.yaml
+    permissions: '0644'
+    content: |
+      apiVersion: kubeadm.k8s.io/v1beta3
+      kind: InitConfiguration
+      skipPhases:
+        - addon/kube-proxy
+      bootstrapTokens:
+        - groups:
+            - system:bootstrappers:kubeadm:default-node-token
+          token: abcdef.0123456789abcdef
+          usages:
+            - signing
+            - authentication   
+      localAPIEndpoint:
+        bindPort: 6443   
+      nodeRegistration:
+        criSocket: unix:///var/run/crio/crio.sock
+        imagePullPolicy: IfNotPresent
+        name: ${hostname}
+        taints:
+          - key: "kubeadmNode"
+            value: "someValue"
+            effect: "NoSchedule"   
+      ---
+      apiVersion: kubeadm.k8s.io/v1beta3
+      kind: ClusterConfiguration
+      apiServer:
+        timeoutForControlPlane: 4m0s      
+      certificatesDir: /etc/kubernetes/pki
+      clusterName: kubernetes
+      controllerManager: {}
+      dns: {}
+      etcd:
+        local:
+          dataDir: /var/lib/etcd
+      imageRepository: registry.k8s.io
+      kubernetesVersion: 1.27.0
+      networking:
+        serviceSubnet: 10.50.0.0/16
+        podSubnet: 10.60.0.0/16
+        dnsDomain: cluster.local
+      scheduler: {}
 
 package_update: true
 
@@ -54,11 +95,12 @@ packages:
   - curl
   - gnupg
   - lsb-release
+  - cri-o
+  - cri-o-runc
   - kubectl
   - kubeadm
   - kubelet
-  - cri-o
-  - cri-o-runc
+  - helm
 
 runcmd:
   - [ modprobe, br_netfilter]
@@ -66,6 +108,7 @@ runcmd:
   - [ systemctl, enable, crio ]
   - [ systemctl, start, crio ]
   - [ kubeadm, config, images, pull ]
+  - [ helm, repo, add, cilium, "https://helm.cilium.io/" ]
 
 apt:
   conf: | # APT config
@@ -170,4 +213,36 @@ apt:
           t2udZSOoswCdF44NTN09DwhPFbNYhEMb9juP5ykAn0bcELvuKmgDwEwZMrPQkG8t
           Pu9n
           =YclD
+          -----END PGP PUBLIC KEY BLOCK-----
+      helm.list:
+        source: "deb [arch=amd64] https://baltocdn.com/helm/stable/debian/ all main"
+        key: |
+          -----BEGIN PGP PUBLIC KEY BLOCK-----
+  
+          mQINBF6yP7IBEADWk4aijQ7Vhj7wn2oz+8asnfzsD0+257qjWy1m+cN4RP6T2NBG
+          S2M5+vzbsKNmGAja8jOpo46pHo/SCdc8Bwv+QHH+JbuBbDNEHwIBGV5p+ZRETiHq
+          l8UsyUAPCWinKR6evZrANCBEzXtOEVJ4thuPoBuZkteKNTdPlOg9MBqD5zz+4iQX
+          2CJJNW7+1sxAAVozHJxjJbu6c84yPvNFAiCAct+x5WJZFJWuO+l55vl6va8cV7tw
+          DgHomk+1Q7w00Z0gh28Pe1yfvvw3N+pCSYn88mSgZtdP3wz3pABkMe4wMobNWuyX
+          bIjGMuFDs7vGBY6UCL6alI/VC7rrSZqJZjntuoNI0Xlfc3BjUHWzinlbA7UFk5Lv
+          qZO61V439Wm4x2n1V+4Kj/nPwtgBrNghaeDjxWLlgqaqynltSpXYnv2qGWYLRUb9
+          WFymbYCJ0piqRdNVNNI8Ht9nFaya6qjDcIxFwFMF9QcrECG1HCK1M5JjdJpzr6Jq
+          Z27/2ZG7DhabArSR5aoyBqhCylJfXugneDhitmilJiQd5EzefjiDO29EuBSMwkAs
+          +IKg9jxGyI47m3+ITWhMDWTFTYBF/O69iKXfFvf4zrbfGMcf2w8vIOEBU3eTSYoY
+          RhHXROedwcYpaVGJmsaT38QTSMqWTn12zlvmW5f6mEI5LQq398gN9eiWDwARAQAB
+          tERIZWxtIGhvc3RlZCBieSBCYWx0byAoUmVwb3NpdG9yeSBzaWduaW5nKSA8Z3Bn
+          c2VjdXJpdHlAZ2V0YmFsdG8uY29tPokCVAQTAQoAPhYhBIG/gy4vGc0qoEcZWSlK
+          xIJ8GhaKBQJesj+yAhsvBQkSzAMABQsJCAcCBhUKCQgLAgQWAgMBAh4BAheAAAoJ
+          EClKxIJ8GhaKPHEP/RRzvYCetoLeIj5FtedbeumGcWaJj97L4R1j7iK0dc0uvg0T
+          5JeMDttAt69dFPHyB0kR1BLSwgJBhYCtvwalvD/g7DmL5l5HIM7o/VrkXDay1Pee
+          wkCclA18y2wNM5EXKAuoFX5FMkRpTtSQhMMllbKsNNSvwvEZWvqMQlwJ/2HgNoVl
+          2NtfY65UXHvIV2nTTmCVDq4OYBlHoUX5rRE7fOgFZ+u6Su7yopTYy13yY8ZVDNf/
+          qNUWqA41gRYnwYtSq1DogHq1dcyr/SW/pFsn4n4LjG+38CIkSjFKOeusg2KPybZx
+          l/z0/l0Yv4pTaa91rh1hGWqhvYDbLr2XqvI1wpcsIRPpU8lasycyQ8EeI4B5FVel
+          ea2Z6rvGtMG92wVNCZ6YMYzpvRA9iRgve4J4ztlCwr0Tm78vY/vZfU5jkPW1VOXJ
+          6nW/RJuc2mecuj8YpJtioNVPbfxE/CjCCnGEnqn511ZYqKGd+BctqoFlWeSihHst
+          tuSqJoqjOmt75MuN6zUJ0s3Ao+tzCmYkQzn2LUwnYisioyTW4gMtlh/wsU6Rmims
+          s5doyG2Mcc0QfstXLMthVkrBpbW4XT+Q6aTGUMlMv1BhKycDUmewI2AMNth5Hood
+          iEt18+X26+Q2exojaMHOCdkUJ+C44XPDy6EvG4RyO4bILHz5obD/9QZO/lzK
+          =BFdd
           -----END PGP PUBLIC KEY BLOCK-----
