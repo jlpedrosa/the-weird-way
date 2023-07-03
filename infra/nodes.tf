@@ -18,16 +18,23 @@ resource "libvirt_pool" "disk_pool" {
 }
 
 # We fetch the latest ubuntu release image from their mirrors
+resource "libvirt_volume" "ubuntu_cloud_image" {
+  name   = "ubuntu-cloud-disk-qcow2"
+  pool   = libvirt_pool.disk_pool.name
+  source = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+  format = "qcow2"
+}
+
 resource "libvirt_volume" "node_disk" {
-  for_each = local.nodes
-  name     = "${each.key}-disk-qcow2"
-  pool     = libvirt_pool.disk_pool.name
-  source   = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-  format   = "qcow2"
+  for_each       = local.nodes
+  name           = "${each.key}-disk.qcow2"
+  base_volume_id = libvirt_volume.ubuntu_cloud_image.id
+  format         = "qcow2"
+  size           = "5368709120"
 }
 
 data "template_file" "user_data" {
-  template = file("${path.module}/cloud_init.cfg")
+  template = file("${path.module}/cloud_init.yaml")
 }
 
 data "template_file" "network_config" {
@@ -55,6 +62,7 @@ resource "libvirt_domain" "node_vm" {
 
   network_interface {
     network_name = "default"
+    wait_for_lease = true
   }
 
   # IMPORTANT: this is a known bug on cloud images, since they expect a console

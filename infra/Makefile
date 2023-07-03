@@ -5,7 +5,7 @@ clean:
 
 .PHONY: destroy
 destroy:
-	terraform destroy
+	terraform apply -destroy -auto-approve -parallelism=50
 
 
 .PHONY: init
@@ -14,5 +14,5 @@ init:
 
 .PHONY: apply
 apply: init
-	terraform apply
+	terraform apply -auto-approve -parallelism=50
 
