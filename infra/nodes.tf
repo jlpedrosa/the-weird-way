@@ -34,7 +34,11 @@ resource "libvirt_volume" "node_disk" {
 }
 
 data "template_file" "user_data" {
+  for_each       = local.nodes
   template = file("${path.module}/cloud_init.yaml")
+  vars = {
+    hostname = each.key
+  }
 }
 
 data "template_file" "network_config" {
@@ -47,7 +51,7 @@ data "template_file" "network_config" {
 resource "libvirt_cloudinit_disk" "cloud_init" {
   for_each       = local.nodes
   name           = "${each.key}-init.iso"
-  user_data      = data.template_file.user_data.rendered
+  user_data      = data.template_file.user_data[each.key].rendered
   network_config = data.template_file.network_config.rendered
   pool           = libvirt_pool.disk_pool.name
 }
@@ -62,6 +66,7 @@ resource "libvirt_domain" "node_vm" {
 
   network_interface {
     network_name = "default"
+    hostname = each.key
     wait_for_lease = true
   }
 

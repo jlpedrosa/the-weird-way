@@ -7,7 +7,6 @@ clean:
 destroy:
 	terraform apply -destroy -auto-approve -parallelism=50
 
-
 .PHONY: init
 init:
 	terraform init
@@ -16,3 +15,10 @@ init:
 apply: init
 	terraform apply -auto-approve -parallelism=50
 
+.PHONY: connect
+connect:
+	ssh -o "StrictHostKeyChecking no" jose@$$(terraform output -json | jq -r '.instances.value.test.address')
+
+
+.PHONY: reset
+reset: destroy apply connect
