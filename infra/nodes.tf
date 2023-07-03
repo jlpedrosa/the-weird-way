@@ -39,7 +39,7 @@ data "template_file" "network_config" {
 
 # contents for system cloud-init
 data "template_file" "system_data" {
-  for_each       = local.nodes
+  for_each = local.nodes
   template = file("${path.module}/control-plane/cloud_init.yaml")
   vars = {
     hostname = each.key
@@ -47,10 +47,9 @@ data "template_file" "system_data" {
 }
 
 
-# Render a multi-part cloud-init config making use of the part
-# above, and other source files
+# Render a multi-part cloud-init config making use of the part above, and other source files
 data "template_cloudinit_config" "cloud_init_config" {
-  for_each       = local.nodes
+  for_each      = local.nodes
   gzip          = false
   base64_encode = false
 
@@ -62,11 +61,11 @@ data "template_cloudinit_config" "cloud_init_config" {
   }
 
   # Kubeadm
-#  part {
-#    filename     = "kubeadm-init.yaml"
-#    content_type = "text/cloud-config"
-#    content      = data.template_file.kubeadm_data[each.key].rendered
-#  }
+  #  part {
+  #    filename     = "kubeadm-init.yaml"
+  #    content_type = "text/cloud-config"
+  #    content      = data.template_file.kubeadm_data[each.key].rendered
+  #  }
 }
 
 
@@ -90,8 +89,8 @@ resource "libvirt_domain" "node_vm" {
   cloudinit = libvirt_cloudinit_disk.cloud_init[each.key].id
 
   network_interface {
-    network_name = "default"
-    hostname = each.key
+    network_name   = "default"
+    hostname       = each.key
     wait_for_lease = true
   }
 

@@ -31,6 +31,9 @@ chpasswd:
       password: linux
       type: text
 
+mounts:
+  - [ swap ]
+
 write_files:
   # Enable IP Forward
   - path: /etc/sysctl.d/10-ip-forwarding.conf
