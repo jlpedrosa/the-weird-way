@@ -1,0 +1,41 @@
+{
+  "builds": [
+    {
+      "name": "ubuntu",
+      "builder_type": "libvirt",
+      "build_time": 1688472936,
+      "files": null,
+      "artifact_id": "/tmp/k8s_lab/kube-node-disk",
+      "packer_run_uuid": "aa6ef61c-7a97-e0a7-34bb-94d1964e7608",
+      "custom_data": null
+    },
+    {
+      "name": "ubuntu",
+      "builder_type": "libvirt",
+      "build_time": 1688473792,
+      "files": null,
+      "artifact_id": "/tmp/k8s_lab/k8s-node-base",
+      "packer_run_uuid": "ce76c629-afa9-723d-2d15-4f4b6a8d213d",
+      "custom_data": null
+    },
+    {
+      "name": "ubuntu",
+      "builder_type": "libvirt",
+      "build_time": 1688477778,
+      "files": null,
+      "artifact_id": "/tmp/k8s_lab/k8s_lab",
+      "packer_run_uuid": "76192240-df3a-61b1-0cfe-03bb7842a635",
+      "custom_data": null
+    },
+    {
+      "name": "ubuntu",
+      "builder_type": "libvirt",
+      "build_time": 1688478083,
+      "files": null,
+      "artifact_id": "/tmp/k8s_lab/k8s-node-base",
+      "packer_run_uuid": "1d8daf51-9c58-20b1-0045-c566faa6a6bc",
+      "custom_data": null
+    }
+  ],
+  "last_run_uuid": "1d8daf51-9c58-20b1-0045-c566faa6a6bc"
+}

@@ -1,10 +1,12 @@
 locals {
-  disk_location = "/tmp/k8s_lab"
+  disk_pool_name     = "k8s_lab"
+  disk_location      = "/tmp/${local.disk_pool_name}"
+  disk_template_name = "k8s-node-base"
   nodes = {
     "ctrl-plane-1" = {}
-    "ctrl-plane-2" = {}
+    #"ctrl-plane-2" = {}
     #"ctrl-plane-3" = {}
-    "wrkr-node-1" = {}
+    #"wrkr-node-1" = {}
     #"wrkr-node-2" = {}
     #"wrkr-node-3" = {}
   }
@@ -16,20 +18,47 @@ resource "libvirt_pool" "disk_pool" {
   path = local.disk_location
 }
 
-# We fetch the latest ubuntu release image from their mirrors
-resource "libvirt_volume" "ubuntu_cloud_image" {
-  name   = "ubuntu-cloud-disk-qcow2"
-  pool   = libvirt_pool.disk_pool.name
-  source = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-  format = "qcow2"
+# Run packer with cloud init
+resource "null_resource" "node_base_image" {
+  depends_on = [
+    libvirt_pool.disk_pool
+  ]
+
+  provisioner "local-exec" {
+    command = "packer build -var 'pool_name=${local.disk_pool_name}' -var 'image_name=${local.disk_template_name}' ${path.module}/images"
+  }
 }
 
+# as provisioners destroy are not allowed variables only self, we use this
+# intermediate volume to trigger the deletion of the image created by packer.
+resource "libvirt_volume" "k8s_node_image" {
+  name   = "node-image"
+  pool   = libvirt_pool.disk_pool.name
+  base_volume_name = local.disk_template_name
+  format = "qcow2"
+
+  depends_on = [
+    null_resource.node_base_image
+  ]
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "virsh vol-delete --pool ${self.pool} --vol ${self.base_volume_name}"
+  }
+}
+
+
 resource "libvirt_volume" "node_disk" {
-  for_each       = local.nodes
-  name           = "${each.key}-disk.qcow2"
-  base_volume_id = libvirt_volume.ubuntu_cloud_image.id
-  format         = "qcow2"
-  size           = "5368709120"
+  for_each         = local.nodes
+  name             = "${each.key}-disk.qcow2"
+  base_volume_name = libvirt_volume.k8s_node_image.name
+  pool             = libvirt_pool.disk_pool.name
+  format           = "qcow2"
+  size             = "12368709632"
+
+  depends_on = [
+    null_resource.node_base_image
+  ]
 }
 
 # contents for network cloud-init
@@ -45,7 +74,6 @@ data "template_file" "system_data" {
     hostname = each.key
   }
 }
-
 
 # Render a multi-part cloud-init config making use of the part above, and other source files
 data "template_cloudinit_config" "cloud_init_config" {
@@ -119,5 +147,3 @@ resource "libvirt_domain" "node_vm" {
     autoport    = true
   }
 }
-
-# IPs: use wait_for_lease true or after creation use terraform refresh and terraform show for the ips of domain

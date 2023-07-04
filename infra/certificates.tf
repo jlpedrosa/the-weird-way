@@ -2,7 +2,7 @@
 
 locals {
   validiy_hours = 60000
-  organization = "Developers, Inc"
+  organization  = "Developers, Inc"
   all_cert_uses = [
     "any_extended",
     "cert_signing",
@@ -51,13 +51,13 @@ resource "tls_self_signed_cert" "ca_cert" {
 
 # RSA key of size 4096 bits
 resource "tls_private_key" "node_private_key" {
-  for_each = local.nodes
+  for_each  = local.nodes
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
 resource "tls_cert_request" "node_cert_request" {
-  for_each = local.nodes
+  for_each        = local.nodes
   private_key_pem = tls_private_key.node_private_key[each.key].private_key_pem
 
   subject {
